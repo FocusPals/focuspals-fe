@@ -20,6 +20,24 @@ export interface QuizContentProps {
 }
 
 export default function QuizContent({ data }: QuizContentProps) {
+  // Validate that data and questions exist
+  if (!data || !data.questions || !Array.isArray(data.questions)) {
+    return (
+      <div className="w-full max-w-2xl h-full flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="p-6 flex items-center justify-center flex-1">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-red-500 mb-2">
+              Invalid Quiz Data
+            </h2>
+            <p className="text-gray-600">
+              The quiz content couldn't be loaded properly.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<number[]>(
     Array(data.questions.length).fill(-1)
@@ -60,6 +78,30 @@ export default function QuizContent({ data }: QuizContentProps) {
         : score;
     }, 0);
   };
+
+  // Additional validation check for currentQuestion
+  if (!currentQuestion) {
+    return (
+      <div className="w-full max-w-2xl h-full flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="p-6 flex items-center justify-center flex-1">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-red-500 mb-2">
+              Question Error
+            </h2>
+            <p className="text-gray-600">
+              The current question couldn't be loaded.
+            </p>
+            <button
+              onClick={handleRestartQuiz}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md"
+            >
+              Reset Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Helper to render tick or cross icon
   const renderIcon = (idx: number) => {

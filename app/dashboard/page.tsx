@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '@/app/ui/sidebar/sidebar';
 import StudioPanel from '@/app/ui/studio-panel/studio-panel';
 import UploadSourcesModal from '@/app/ui/modal/upload-source-modal';
-import TextViewer from '@/app/ui/sidebar/text-viewer';
 import MainDisplay from '@/app/ui/main-display/main-display';
 
 interface ContentData {
@@ -20,6 +19,10 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
   const [currentData, setCurrentData] = useState<ContentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [attentionData, setAttentionData] = useState({
+    attentionLevel: 75,
+    shouldSwitchContent: false,
+  });
 
   // Function to fetch content based on selected file
   const fetchContent = async () => {
@@ -48,8 +51,8 @@ export default function Dashboard() {
       const result = await response.json();
       console.log('Content fetched:', result);
 
-      // Generate focus score (in a real app, this would come from the API)
-      const focusScore = Math.floor(Math.random() * 101);
+      // Use attentionData.attentionLevel instead of random score
+      const focusScore = attentionData.attentionLevel;
 
       // Create the content data structure
       const contentData: ContentData = {
@@ -85,35 +88,58 @@ export default function Dashboard() {
     }
   };
 
-  const reloadFocusScore = useCallback(() => {
-    if (!currentData) return;
+  // Handle attention level changes from AttentionLevelTracker
+  const handleAttentionChange = useCallback(
+    (data: { attentionLevel: number; shouldSwitchContent: boolean }) => {
+      setAttentionData(data);
 
-    // Generate a new focus score
-    const newFocusScore = Math.floor(Math.random() * 101);
+      // If there's content and we should switch, update content type
+      if (currentData && data.shouldSwitchContent) {
+        updateContentType(data.attentionLevel);
+      }
+    },
+    [currentData]
+  );
 
-    // Create updated content data with new focus score and timestamp
-    const updatedContentData: ContentData = {
-      ...currentData,
-      focusScore: newFocusScore,
-      timestamp: Date.now(), // Add timestamp to ensure React detects the change
-    };
+  // Update content type based on attention level
+  const updateContentType = useCallback(
+    (attentionLevel: number) => {
+      if (!currentData) return;
 
-    // Determine content type based on new focus score
-    if (newFocusScore > 80) {
-      updatedContentData.type = 'text';
-    } else if (newFocusScore > 60) {
-      updatedContentData.type = 'flipcard';
-    } else if (newFocusScore > 40) {
-      updatedContentData.type = 'tiktok';
-    } else if (newFocusScore > 20) {
-      updatedContentData.type = 'quiz';
-    } else {
-      updatedContentData.type = 'react';
-    }
+      // Determine new content type based on attention level
+      let newType = '';
+      if (attentionLevel > 80) {
+        newType = 'text';
+      } else if (attentionLevel > 60) {
+        newType = 'flipcard';
+      } else if (attentionLevel > 40) {
+        newType = 'tiktok';
+      } else if (attentionLevel > 20) {
+        newType = 'quiz';
+      } else {
+        newType = 'react';
+      }
 
-    console.log('Updated content data:', updatedContentData);
-    setCurrentData(updatedContentData);
-  }, [currentData]);
+      // Only update if type is different
+      if (newType !== currentData.type) {
+        console.log(
+          `Switching content type from ${currentData.type} to ${newType} based on attention level ${attentionLevel}`
+        );
+
+        // Update content data with new type
+        setCurrentData(prevData => {
+          if (!prevData) return null;
+          return {
+            ...prevData,
+            type: newType,
+            focusScore: attentionLevel,
+            timestamp: Date.now(),
+          };
+        });
+      }
+    },
+    [currentData]
+  );
 
   // Handle file upload
   const handleFileUpload = (files: File[]) => {
@@ -132,23 +158,17 @@ export default function Dashboard() {
     }
   }, [selectedFile]);
 
+  // Effect to handle attention data changes
+  useEffect(() => {
+    if (attentionData.shouldSwitchContent && currentData) {
+      updateContentType(attentionData.attentionLevel);
+    }
+  }, [attentionData, currentData, updateContentType]);
+
   // Handle file selection from sidebar
   const handleFileView = (file: File) => {
     setSelectedFile(file);
   };
-
-  // useEffect(() => {
-  //   // Only start the interval if we have content data
-  //   if (!currentData) return;
-
-  //   const intervalId = setInterval(() => {
-  //     console.log('Auto-reloading focus score...');
-  //     reloadFocusScore();
-  //   }, 10000); // 10 seconds
-
-  //   // Clean up interval on unmount
-  //   return () => clearInterval(intervalId);
-  // }, [currentData, reloadFocusScore]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -168,7 +188,7 @@ export default function Dashboard() {
       />
 
       {/* Right Studio Panel */}
-      <StudioPanel />
+      <StudioPanel onAttentionChange={handleAttentionChange} />
 
       {/* Upload Source Modal */}
       {showModal && (
