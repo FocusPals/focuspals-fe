@@ -1,8 +1,6 @@
 'use client';
 
-import { ContentUpdate } from '@/app/lib/definitions';
-import React, { useEffect, useState, useRef } from 'react';
-import io from 'socket.io-client';
+import React, { useState, useEffect } from 'react';
 import TextContent from './content/text-content';
 import DefaultDisplay from './default-display';
 import ReactEmbedViewer from '../react-embed-component/react-embed-viewer';
@@ -14,85 +12,105 @@ import {
   SAMPLE_QUIZ_DATA,
   SAMPLE_TEXT_DATA,
 } from '@/app/lib/sample-data';
+import { Spinner } from '../dashboard/redirect';
 
 interface MainDisplayProps {
-  onUpload: () => void;
+  isLoading?: boolean;
+  contentData?: {
+    focusScore: number;
+    type: string;
+    data: any;
+  } | null;
+  onUpload?: () => void;
 }
 
 type ContentType =
   | 'default'
   | 'text'
   | 'flipcard'
-  | 'diagram'
-  | 'video'
-  | 'audio'
   | 'quiz'
-  | 'minigame';
+  | 'react'
+  | 'tiktok';
 
-export default function MainDisplay({ onUpload }: MainDisplayProps) {
-  const [currentContent, setCurrentContent] = useState<ContentUpdate>();
-  const [demoMode, setDemoMode] = useState(true);
+export default function MainDisplay({
+  isLoading = false,
+  contentData = null,
+  onUpload,
+}: MainDisplayProps) {
+  const [demoMode, setDemoMode] = useState(false);
   const [selectedContentType, setSelectedContentType] =
     useState<ContentType>('default');
-  const socketRef = useRef<any>(null);
 
+  // Update selected content type when contentData changes
   useEffect(() => {
-    if (demoMode) return; // Don't connect to socket in demo mode
-
-    // Get the WebSocket server URL from environment variable
-    const socketServerUrl = 'http://localhost:4000';
-
-    // Create WebSocket connection
-    socketRef.current = io(socketServerUrl);
-
-    // Listen for content updates
-    socketRef.current.on('contentUpdate', (update: ContentUpdate) => {
-      console.log('Content update received:', update);
-      setCurrentContent(update);
-    });
-
-    // Cleanup on unmount
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, [demoMode]);
+    if (contentData && contentData.type) {
+      setSelectedContentType(contentData.type as ContentType);
+    }
+  }, [contentData]);
 
   const handleContentTypeChange = (type: ContentType) => {
     setSelectedContentType(type);
-
-    // Set sample data based on the selected content type
-    if (type === 'default') {
-      setCurrentContent(undefined);
-    } else if (type === 'text') {
-      setCurrentContent(SAMPLE_TEXT_DATA as ContentUpdate);
-    } else if (type === 'flipcard') {
-      setCurrentContent(SAMPLE_FLIP_CARD_DATA as ContentUpdate);
-    }
   };
 
   // Render the appropriate component based on content type
   const renderContent = () => {
-    // In demo mode, use selectedContentType, otherwise use the content from WebSocket
-    const contentToRender = demoMode
-      ? { type: selectedContentType }
-      : currentContent;
+    // If in demo mode, use the sample data based on selected type
+    if (demoMode) {
+      switch (selectedContentType) {
+        case 'text':
+          return <TextContent data={SAMPLE_TEXT_DATA.data} />;
+        case 'flipcard':
+          return <FlipCardContent data={SAMPLE_FLIP_CARD_DATA.data} />;
+        case 'tiktok':
+          return <VideoContent />;
+        case 'quiz':
+          return <QuizContent data={SAMPLE_QUIZ_DATA.data} />;
+        case 'react':
+          return (
+            <ReactEmbedViewer jsonPath="./app/ui/react-embed-component/SAMPLE_VISUALIZER_DATA.json" />
+          );
+        default:
+          return <DefaultDisplay onUpload={onUpload} />;
+      }
+    }
 
-    if (!contentToRender || contentToRender.type === 'default') {
+    // If not demo mode, use the contentData provided by the API
+    if (!contentData) {
       return <DefaultDisplay onUpload={onUpload} />;
     }
 
-    switch (contentToRender.type) {
+    function parseTextData(data: any) {
+      let textData;
+      if (data.data && typeof data.data === 'string') {
+        try {
+          textData = JSON.parse(data.data);
+        } catch (e) {
+          // If it's not valid JSON, treat it as plain text content
+          textData = { content: data.data };
+        }
+      } else {
+        // Already an object or null/undefined
+        textData = data.data || SAMPLE_TEXT_DATA.data;
+      }
+
+      return textData;
+    }
+
+    switch (contentData.type) {
       case 'text':
-        return <TextContent data={SAMPLE_TEXT_DATA.data} />;
+        const textData = parseTextData(contentData.data);
+        return <TextContent data={textData} />;
       case 'flipcard':
-        return <FlipCardContent data={SAMPLE_FLIP_CARD_DATA.data} />;
-      case 'video':
+        return (
+          <FlipCardContent
+            data={contentData.data || SAMPLE_FLIP_CARD_DATA.data}
+          />
+        );
+      case 'tiktok':
         return <VideoContent />;
       case 'quiz':
-        return <QuizContent data={SAMPLE_QUIZ_DATA.data} />;
-      case 'minigame':
+        return <QuizContent data={contentData.data || SAMPLE_QUIZ_DATA.data} />;
+      case 'react':
         return (
           <ReactEmbedViewer jsonPath="./app/ui/react-embed-component/SAMPLE_VISUALIZER_DATA.json" />
         );
@@ -100,6 +118,20 @@ export default function MainDisplay({ onUpload }: MainDisplayProps) {
         return <TextContent data={{ content: 'Unsupported content type' }} />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col bg-white p-6 overflow-hidden">
+        <div className="flex-1 overflow-y-auto border rounded-lg p-8 bg-blue-50 border-blue-200 flex flex-col items-center justify-center">
+          <Spinner />
+          <h1 className="text-2xl font-bold text-gray-800">
+            Processing your learning material
+          </h1>
+          <p className="text-gray-600 mb-4">Generating content...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-white p-6 overflow-hidden">
@@ -173,9 +205,9 @@ export default function MainDisplay({ onUpload }: MainDisplayProps) {
             </button>
 
             <button
-              onClick={() => handleContentTypeChange('video')}
+              onClick={() => handleContentTypeChange('tiktok')}
               className={`flex items-center px-4 py-2 rounded-full border transition ${
-                selectedContentType === 'video'
+                selectedContentType === 'tiktok'
                   ? 'bg-blue-100 border-blue-600 text-blue-600'
                   : 'bg-white border-gray-300 text-gray-700'
               }`}
@@ -184,9 +216,9 @@ export default function MainDisplay({ onUpload }: MainDisplayProps) {
             </button>
 
             <button
-              onClick={() => handleContentTypeChange('minigame')}
+              onClick={() => handleContentTypeChange('react')}
               className={`flex items-center px-4 py-2 rounded-full border transition ${
-                selectedContentType === 'minigame'
+                selectedContentType === 'react'
                   ? 'bg-blue-100 border-blue-600 text-blue-600'
                   : 'bg-white border-gray-300 text-gray-700'
               }`}

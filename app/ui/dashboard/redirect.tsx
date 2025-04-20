@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const Spinner = () => {
+export const Spinner = () => {
   return (
     <div className="flex items-center justify-center">
       <svg

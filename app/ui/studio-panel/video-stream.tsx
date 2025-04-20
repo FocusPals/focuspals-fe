@@ -95,7 +95,6 @@ const VideoStream = () => {
   }, [displayMode]);
 
   const displayProcessedImage = (base64Image: string) => {
-    console.log('Displaying processed image:', base64Image);
     if (!canvasRef.current) return;
 
     const ctx = canvasRef.current.getContext('2d');
