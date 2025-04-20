@@ -256,16 +256,6 @@ const VideoStream = () => {
         }`}
       />
 
-      {!isCameraActive && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white rounded-lg">
-          <Camera
-            className="w-12 h-12 mb-2 opacity-60 text-white"
-            stroke="white"
-          />
-          <p className="text-sm opacity-80">Camera is turned off</p>
-        </div>
-      )}
-
       <div className="absolute top-3 left-3 flex flex-wrap gap-2">
         <Badge
           variant={isConnected ? 'default' : 'destructive'}

@@ -22,6 +22,7 @@ interface MainDisplayProps {
     data: any;
   } | null;
   onUpload?: () => void;
+  focusMode?: boolean;
 }
 
 type ContentType =
@@ -36,6 +37,7 @@ export default function MainDisplay({
   isLoading = false,
   contentData = null,
   onUpload,
+  focusMode = false,
 }: MainDisplayProps) {
   const [demoMode, setDemoMode] = useState(false);
   const [selectedContentType, setSelectedContentType] =
@@ -134,39 +136,52 @@ export default function MainDisplay({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white p-6 overflow-hidden">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Learning Session</h1>
+    <div className={`flex-grow flex flex-col ${focusMode ? 'max-w-4xl mx-auto' : ''}`}>
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="font-bold text-xl">Learning Session</h2>
+        {/* You can show a "Focus Mode Active" badge here when in focus mode */}
+        {focusMode && (
+          <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+            Focus Mode Active
+          </span>
+        )}
+      </div>
 
-        <div className="flex items-center gap-4">
-          <label className="flex items-center cursor-pointer">
-            <span className="mr-2 text-sm text-gray-700">Demo Mode</span>
-            <div
-              className={`relative inline-block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-                demoMode ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
+      <div className="flex-grow p-4 overflow-y-auto">
+        {/* Content area */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <p>Loading content...</p>
+          </div>
+        ) : contentData ? (
+          // Render your content here based on contentData
+          <div className="h-full">
+            {renderContent()}
+          </div>
+        ) : (
+          // Empty state when no content
+          <div className="flex flex-col items-center justify-center h-full">
+            <h3 className="text-xl font-semibold mb-2">Ready to get focused?</h3>
+            <p className="text-gray-600 mb-4 text-center">
+              Upload your learning materials to start a personalized learning experience
+            </p>
+            <button
+              onClick={onUpload}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              <input
-                type="checkbox"
-                className="opacity-0 absolute"
-                checked={demoMode}
-                onChange={() => setDemoMode(!demoMode)}
-              />
-              <div
-                className={`absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                  demoMode ? 'transform translate-x-4' : ''
-                }`}
-              ></div>
-            </div>
-          </label>
+              Upload Materials
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* When in focus mode, show a small exit button at the bottom */}
+      {focusMode && (
+        <div className="text-center p-4 text-sm text-gray-500">
+          Press ESC or click the button in the top-right to exit focus mode
         </div>
-      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto border rounded-lg p-4 bg-blue-50 border-blue-500 flex items-center justify-center">
-        {renderContent()}
-      </div>
-
-      {/* DEMO MODE CONTROL BAR - MOVED TO BOTTOM */}
       <div className="mt-4 flex flex-col items-center">
         {/* Pills Button Selection */}
         {demoMode && (

@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
   const [currentData, setCurrentData] = useState<ContentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false); // New state to track if content is loaded
   const [attentionData, setAttentionData] = useState({
     attentionLevel: 75,
@@ -232,30 +233,84 @@ export default function Dashboard() {
   const handleFileView = (file: File) => {
     setSelectedFile(file);
   };
+  // useEffect(() => {
+  //   // Only start the interval if we have content data
+  //   if (!currentData) return;
+
+  //   const intervalId = setInterval(() => {
+  //     console.log('Auto-reloading focus score...');
+  //     reloadFocusScore();
+  //   }, 10000); // 10 seconds
+
+  //   // Clean up interval on unmount
+  //   return () => clearInterval(intervalId);
+  // }, [currentData, reloadFocusScore]);
+
+  // Add keyboard shortcut for focus mode (Escape key)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && focusMode) {
+        setFocusMode(false);
+      } else if (e.key === 'f' && e.ctrlKey) {
+        e.preventDefault();
+        setFocusMode(!focusMode);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [focusMode]);
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Left Sidebar */}
+    <div className="flex h-screen bg-gray-50 relative">
+      {/* Focus Mode Toggle Button */}
+      <button 
+        onClick={() => setFocusMode(!focusMode)}
+        className="absolute top-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-3 rounded-full shadow-lg transition-all duration-300"
+        title={focusMode ? "Exit Focus Mode" : "Enter Focus Mode"}
+      >
+        {focusMode ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" />
+          </svg>
+        )}
+      </button>
+
+      {/* Left Sidebar - Position it properly with transitions */}
       <Sidebar
         onAddClick={() => setShowModal(true)}
         uploadedFiles={uploadedFiles}
         onFileView={handleFileView}
         selectedFile={selectedFile}
+        className={`transition-transform duration-300 ${
+          focusMode ? 'transform -translate-x-full absolute left-0 z-10' : ''
+        }`}
       />
 
-      {/* Main Content Area */}
-      <MainDisplay
-        isLoading={isLoading}
-        contentData={currentData}
-        onUpload={() => setShowModal(true)}
-      />
+      {/* Main Content Area - Expand in Focus Mode */}
+      <div className={`flex-grow transition-all duration-300 ${focusMode ? 'px-8' : ''}`}>
+        <MainDisplay
+          isLoading={isLoading}
+          contentData={currentData}
+          onUpload={() => setShowModal(true)}
+          focusMode={focusMode}
+        />
+      </div>
 
-      {/* Right Studio Panel */}
-      <StudioPanel
-        onAttentionChange={handleAttentionChange}
-        isContentLoaded={contentLoaded}
-        currentContentType={currentData?.type || ''}
-      />
+      {/* Right Studio Panel - Hide completely when in focus mode */}
+      {!focusMode && (
+        <StudioPanel
+          onAttentionChange={handleAttentionChange}
+          isContentLoaded={contentLoaded}
+          currentContentType={currentData?.type || ''}
+        />
+      )}
 
       {/* Upload Source Modal */}
       {showModal && (
