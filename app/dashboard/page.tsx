@@ -49,8 +49,7 @@ export default function Dashboard() {
       console.log('Content fetched:', result);
 
       // Generate focus score (in a real app, this would come from the API)
-      // const focusScore = Math.floor(Math.random() * 101);
-      const focusScore = 76;
+      const focusScore = Math.floor(Math.random() * 101);
 
       // Create the content data structure
       const contentData: ContentData = {
@@ -138,18 +137,18 @@ export default function Dashboard() {
     setSelectedFile(file);
   };
 
-  useEffect(() => {
-    // Only start the interval if we have content data
-    if (!currentData) return;
+  // useEffect(() => {
+  //   // Only start the interval if we have content data
+  //   if (!currentData) return;
 
-    const intervalId = setInterval(() => {
-      console.log('Auto-reloading focus score...');
-      reloadFocusScore();
-    }, 10000); // 10 seconds
+  //   const intervalId = setInterval(() => {
+  //     console.log('Auto-reloading focus score...');
+  //     reloadFocusScore();
+  //   }, 10000); // 10 seconds
 
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId);
-  }, [currentData, reloadFocusScore]);
+  //   // Clean up interval on unmount
+  //   return () => clearInterval(intervalId);
+  // }, [currentData, reloadFocusScore]);
 
   return (
     <div className="flex h-screen bg-gray-50">
