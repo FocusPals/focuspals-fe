@@ -5,6 +5,11 @@ import Sidebar from '@/app/ui/sidebar/sidebar';
 import StudioPanel from '@/app/ui/studio-panel/studio-panel';
 import UploadSourcesModal from '@/app/ui/modal/upload-source-modal';
 import MainDisplay from '@/app/ui/main-display/main-display';
+import {
+  SAMPLE_FLIP_CARD_DATA,
+  SAMPLE_QUIZ_DATA,
+  SAMPLE_TEXT_DATA,
+} from '../lib/sample-data';
 
 interface ContentData {
   focusScore: number;
@@ -19,10 +24,12 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
   const [currentData, setCurrentData] = useState<ContentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false); // New state to track if content is loaded
   const [attentionData, setAttentionData] = useState({
     attentionLevel: 75,
     shouldSwitchContent: false,
   });
+  const [showBreakModal, setShowBreakModal] = useState(false); // New state for break modal
 
   // Function to fetch content based on selected file
   const fetchContent = async () => {
@@ -32,24 +39,29 @@ export default function Dashboard() {
     }
 
     setIsLoading(true);
+    setContentLoaded(false); // Reset content loaded state
 
     try {
       // Create form data for the selected file
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+      console.log('Processing file, please wait...');
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      console.log('Processing complete!');
+
       // Make API request to get content
-      const response = await fetch('http://127.0.0.1:5001/process-pdf', {
-        method: 'POST',
-        body: formData,
-      });
+      // const response = await fetch('http://127.0.0.1:5001/process-pdf', {
+      //   method: 'POST',
+      //   body: formData,
+      // });
 
-      if (!response.ok) {
-        throw new Error('Failed to process PDF');
-      }
+      // if (!response.ok) {
+      //   throw new Error('Failed to process PDF');
+      // }
 
-      const result = await response.json();
-      console.log('Content fetched:', result);
+      // const result = await response.json();
+      // console.log('Content fetched:', result);
 
       // Use attentionData.attentionLevel instead of random score
       const focusScore = attentionData.attentionLevel;
@@ -64,25 +76,25 @@ export default function Dashboard() {
       // Assign type and data based on focus score
       if (focusScore > 80) {
         contentData.type = 'text';
-        contentData.data = result.text.data || result.data;
+        contentData.data = SAMPLE_TEXT_DATA.data;
       } else if (focusScore > 60) {
         contentData.type = 'flipcard';
-        contentData.data = result.flipcard.data || result.data;
+        contentData.data = SAMPLE_FLIP_CARD_DATA.data;
       } else if (focusScore > 40) {
         contentData.type = 'tiktok';
-        contentData.data = result.tiktok.data || result.data;
       } else if (focusScore > 20) {
         contentData.type = 'quiz';
-        contentData.data = result.quiz.data || result.data;
+        contentData.data = SAMPLE_QUIZ_DATA.data;
       } else {
         contentData.type = 'react';
-        contentData.data = result.mini.data || result.data;
       }
 
       console.log('Content data:', contentData);
       setCurrentData(contentData);
+      setContentLoaded(true); // Mark content as loaded
     } catch (error) {
       console.error('Error fetching content:', error);
+      setContentLoaded(false); // Reset if there was an error
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +102,63 @@ export default function Dashboard() {
 
   // Handle attention level changes from AttentionLevelTracker
   const handleAttentionChange = useCallback(
-    (data: { attentionLevel: number; shouldSwitchContent: boolean }) => {
+    (data: {
+      attentionLevel: number;
+      shouldSwitchContent: boolean;
+      suggestBreak?: boolean;
+      suggestedContentType?: string;
+    }) => {
       setAttentionData(data);
 
       // If there's content and we should switch, update content type
       if (currentData && data.shouldSwitchContent) {
-        updateContentType(data.attentionLevel);
+        // Handle break suggestion
+        if (data.suggestBreak) {
+          // Show a break modal instead of switching content
+          setShowBreakModal(true);
+          // Optionally set a timer to remind the user when the break should end
+          const breakTimer = setTimeout(() => {
+            setShowBreakModal(false);
+          }, 5 * 60 * 1000); // 5 minutes
+
+          // Clean up timer on component unmount or if user dismisses early
+          return () => clearTimeout(breakTimer);
+        } else {
+          // Use the specifically suggested content type if available
+          if (data.suggestedContentType) {
+            updateContentToType(data.suggestedContentType);
+          } else {
+            // Fall back to determining by attention level
+            updateContentType(data.attentionLevel);
+          }
+        }
+      }
+    },
+    [currentData]
+  );
+
+  // New function to update content to a specific type
+  const updateContentToType = useCallback(
+    (newType: string) => {
+      if (!currentData) return;
+
+      // Only update if type is different
+      if (newType !== currentData.type) {
+        console.log(
+          `Switching content type from ${currentData.type} to ${newType} based on suggestion`
+        );
+
+        // Update the currentData with the new type
+        setCurrentData(prevData => {
+          if (!prevData) return null;
+
+          // Keep same data but change the type
+          return {
+            ...prevData,
+            type: newType,
+            timestamp: Date.now(),
+          };
+        });
       }
     },
     [currentData]
@@ -188,7 +251,11 @@ export default function Dashboard() {
       />
 
       {/* Right Studio Panel */}
-      <StudioPanel onAttentionChange={handleAttentionChange} />
+      <StudioPanel
+        onAttentionChange={handleAttentionChange}
+        isContentLoaded={contentLoaded}
+        currentContentType={currentData?.type || ''}
+      />
 
       {/* Upload Source Modal */}
       {showModal && (
@@ -196,6 +263,14 @@ export default function Dashboard() {
           onClose={() => setShowModal(false)}
           handleFileUpload={handleFileUpload}
         />
+      )}
+
+      {/* Break Modal */}
+      {showBreakModal && (
+        <div className="break-modal">
+          <p>Take a break! We'll remind you when it's time to return.</p>
+          <button onClick={() => setShowBreakModal(false)}>Dismiss</button>
+        </div>
       )}
     </div>
   );
